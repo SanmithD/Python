@@ -59,6 +59,36 @@ app.get("/stream", async (req, res) => {
   }
 });
 
+app.get("/system_prompt", async (req, res) => {
+  try {
+    const py_res = await axios.post(
+      `${BASE_URL}/system`,
+      { question: "Is water dangerous? in simple one sentence" }
+    );
+
+    console.log(py_res.data)
+    res.send(py_res.data)
+  } catch (error) {
+    console.log("server error", error);
+    res.send("server error");
+  }
+});
+
+app.get("/tool", async (req, res) => {
+  try {
+    const py_res = await axios.post(
+      `${BASE_URL}/tool`,
+      { question: "what is the current time" }
+    );
+
+    console.log(py_res.data)
+    res.send(py_res.data)
+  } catch (error) {
+    console.log("server error", error);
+    res.send("server error");
+  }
+});
+
 app.listen(4000, () => {
   console.log("server started");
 });

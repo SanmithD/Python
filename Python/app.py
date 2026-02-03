@@ -5,6 +5,7 @@ import asyncio
 from dotenv import load_dotenv
 from time import time
 from collections import defaultdict
+from SYSTEM_INSTRACTION import TOOLS_PROMPT
 
 load_dotenv()
 
@@ -55,4 +56,18 @@ async def generate_text(input: str) -> str:
     )
 
     CACHE[input] = (response.text, now)
+    return response.text
+
+async def decide_tool(question: str):
+    loop = asyncio.get_running_loop()
+
+    response = await loop.run_in_executor(
+        None,
+        partial(
+            client.models.generate_content,
+            model="gemini-3-flash-preview",
+            contents=f"{TOOLS_PROMPT}\n\nUser: {question}"
+        )
+    )
+
     return response.text

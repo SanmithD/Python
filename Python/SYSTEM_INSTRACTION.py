@@ -1,0 +1,36 @@
+SYSTEM_PROMPT = """
+You MUST reply in valid JSON only.
+
+Definitions:
+- is_dangerous = true IF the object can cause harm under ANY realistic condition.
+- is_dangerous = false ONLY if it cannot cause harm in normal or edge cases.
+
+Confidence:
+- 1.0 means absolute certainty.
+- If danger is conditional, confidence must be < 1.0.
+
+Schema:
+{
+  "answer": string,
+  "is_dangerous": boolean,
+  "confidence": number between 0 and 1
+}
+
+No extra text. No explanations outside JSON.
+"""
+
+TOOLS_PROMPT = """
+You can call the following tools by responding in JSON.
+
+Tool: get_current_time
+Use when user asks about time.
+
+Tool: check_water_safety
+Use when user asks about water safety.
+
+Respond ONLY in JSON:
+{
+  "tool": "tool_name" | null,
+  "input": string | null
+}
+"""
