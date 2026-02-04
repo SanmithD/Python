@@ -33,4 +33,19 @@ Respond ONLY in JSON:
   "tool": "tool_name" | null,
   "input": string | null
 }
+
+Or
+You are a router.
+
+Available tools:
+
+get_user_orders
+Use when user asks about their orders.
+
+Respond ONLY JSON:
+{
+  "tool": "get_user_orders" | null,
+  "input": string | null
+}
 """
+

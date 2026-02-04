@@ -29,6 +29,18 @@ def allow(ip: str):
     RATE_LIMIT[ip].append(now)
     return True
 
+async def safe_generate(fn, retries=5):
+    for i in range(retries):
+        try:
+            return await fn()
+        except Exception as e:
+            print("Gemini Faild", e)
+
+            if i == retries -1:
+                return "AI server is temporally busy"
+            
+            await asyncio.sleep(1.5)
+
 async def generate_text(input: str) -> str:
 
     now = time()
@@ -71,3 +83,23 @@ async def decide_tool(question: str):
     )
 
     return response.text
+
+async def explain_by_ai(question: str, tool_result):
+
+    loop = asyncio.get_running_loop()
+
+    res = await loop.run_in_executor(
+        None,
+        partial(
+            client.models.generate_content,
+            model="gemini-3-flash-preview",
+            contents=f"""
+User question: {question}
+Database result: {tool_result}
+
+Explain clearly and summarize.
+"""
+        )
+    )
+
+    return res.text

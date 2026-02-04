@@ -81,7 +81,20 @@ app.get("/tool", async (req, res) => {
       { question: "what is the current time" }
     );
 
-    console.log(py_res.data)
+    res.send(py_res.data)
+  } catch (error) {
+    console.log("server error", error);
+    res.send("server error");
+  }
+});
+
+app.get("/query", async (req, res) => {
+  try {
+    const py_res = await axios.post(
+      `${BASE_URL}/db_tool`,
+      { question: "what is my orders" }
+    );
+
     res.send(py_res.data)
   } catch (error) {
     console.log("server error", error);

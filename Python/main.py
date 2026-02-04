@@ -1,31 +1,17 @@
-from app import generate_text, client, allow, decide_tool
+# venv\Scripts\activate
+
+from app import generate_text, client, allow, decide_tool, explain_by_ai, safe_generate
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import ValidationError
 import asyncio
-import time
 import json
 from functools import partial
 from SYSTEM_INSTRACTION import SYSTEM_PROMPT
+from TypeSafety import SafeResponse, InputValue
+from Tools import get_current_time, check_water_safety, run_tool
 
 app = FastAPI(title="Learning")
-
-class InputValue(BaseModel):
-    question: str
-
-class SafeResponse(BaseModel):
-    answer: str = Field(..., min_length=1)
-    is_dangerous: bool
-    confidence: float = Field(..., ge=0, le=1)
-
-def get_current_time():
-    return {"time": time.time()}
-
-def check_water_safety():
-    return {
-        "is_dangerous": True,
-        "reason": "Can cause drowning or intoxication"
-    }
 
 @app.get('/')
 def greet():
@@ -136,4 +122,32 @@ async def get_data_from_tool(req: InputValue, request: Request):
     return {
         "tool_used": tool,
         "result": result
+    }
+
+@app.post("/db_tool")
+async def get_res_from_db(req: InputValue, request: Request):
+    ip = request.client.host
+
+    if not allow(ip):
+        raise HTTPException(status_code=429, detail="Too many request")
+    
+    decision = await decide_tool(req.question)
+
+    try:
+        data = json.loads(decision)
+    except:
+        return { "error": "Model decision invalid" }
+
+    tool = data.get("tool")
+
+    user_id = "u123"
+
+    tool_result = await run_tool(tool, user_id)
+    final_answer = await safe_generate(
+        lambda: explain_by_ai(req.question, tool_result)
+    )
+
+    return {
+        "data": tool_result,
+        "explanation": final_answer
     }
