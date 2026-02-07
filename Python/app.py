@@ -1,4 +1,5 @@
 from google import genai
+from google.genai import types
 from functools import partial
 import os
 import asyncio
@@ -10,7 +11,10 @@ from SYSTEM_INSTRACTION import TOOLS_PROMPT
 load_dotenv()
 
 client = genai.Client(
-    api_key=os.getenv("GEMINI_API_KEY")
+    api_key=os.getenv("GEMINI_API_KEY"),
+    http_options=types.HttpOptions(
+        timeout=30000,
+    )
 )
 
 if not client:
@@ -102,4 +106,71 @@ Explain clearly and summarize.
         )
     )
 
+    return res.text
+
+QUERY_CACHE = {}
+CACHE_MEMORY = {}
+
+def save_memory(user_id, role, message):
+    if user_id not in CACHE_MEMORY:
+        CACHE_MEMORY[user_id] = []
+
+    CACHE_MEMORY[user_id].append({
+        "role": role,
+        "content": message
+    })
+    if len(CACHE_MEMORY[user_id]) > 20:
+        CACHE_MEMORY[user_id] = CACHE_MEMORY[user_id][-20:]
+
+def get_memory(user_id: str, limit=6):
+    return CACHE_MEMORY.get(user_id, [])[-limit:]
+
+
+async def explain_with_memory(user_id: str, question: str, tool_result):
+
+    history = get_memory(user_id)
+
+    context = "\n".join(
+        f"{msg['role']} : {msg['content']}" for msg in history
+    )
+
+    loop = asyncio.get_running_loop()
+
+    res = await loop.run_in_executor(
+        None,
+        partial(
+            client.models.generate_content,
+            model="gemini-3-flash-preview",
+            contents=f"""Conversation History {context}
+            User question: 
+            {question}
+
+tool result:
+{tool_result}
+
+respond naturally.
+            """
+        )
+    )
+
+    
+    return res.text
+
+
+async def get_tool_response(question: str, tool_result, context: str) -> str:
+    """Only called when tool is actually used"""
+    loop = asyncio.get_running_loop()
+    
+    res = await loop.run_in_executor(
+        None,
+        partial(
+            client.models.generate_content,
+            model="gemini-2.0-flash",
+            contents=f"""Context: {context}
+Question: {question}
+Tool Result: {tool_result}
+
+Provide a natural response based on the tool result."""
+        )
+    )
     return res.text

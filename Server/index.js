@@ -102,6 +102,64 @@ app.get("/query", async (req, res) => {
   }
 });
 
+app.get('/insert_order', async(req, res) => {
+  try {
+    // const { amount, title } = req.body;
+
+    // if(!amount || !title){
+    //   return res.send("Enter body")
+    // }
+
+    const sendData = await axios.post(`${BASE_URL}/insert`,{
+      userId: "u100",
+      title: "Bike",
+      status: "success",
+      amount: 500000
+    });
+
+    res.send(sendData.data)
+  } catch (error) {
+    console.log("server error", error);
+    res.send("server error");
+  }
+});
+
+app.get('/memory', async(req, res) => {
+  try {
+    const response = await axios.post(`${BASE_URL}/memory_model`, {
+      userId: "u100",
+      question: "what is water explain in simple one line sentence"
+    });
+
+    if(!response){
+      return res.send("Not found")
+    }
+
+    res.send(response.data)
+  } catch (error) {
+    console.log("server error", error);
+    res.send("server error");
+  }
+})
+
+app.get('/test', async(req, res) =>{
+  try {
+    const response = await axios.post(`${BASE_URL}/rapid`,{
+      userId: "u100",
+      question: "what is the last question ? in one sentence"
+    });
+
+    if(!response){
+      return res.send("Not found")
+    }
+
+    res.send(response.data)
+  } catch (error) {
+    console.log("server error", error);
+    res.send("server error");
+  }
+})
+
 app.listen(4000, () => {
   console.log("server started");
 });

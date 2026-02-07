@@ -49,3 +49,23 @@ Respond ONLY JSON:
 }
 """
 
+
+AGENT_PROMPT = """
+You are an AI agent.
+
+Decide next step:
+
+TOOLS → when data or actions needed  
+KNOWLEDGE → when external docs needed  
+ANSWER → when you already know  
+
+Respond JSON:
+{
+  "step": "tool" | "knowledge" | "answer"
+}
+"""
+
+DOCS = [
+    "Water intoxication happens when too much water dilutes sodium.",
+    "Drowning is caused by airway blockage by liquid."
+]
