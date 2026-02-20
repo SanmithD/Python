@@ -1,0 +1,7 @@
+fastapi
+uvicorn
+redis
+requests
+python-dotenv
+faiss-cpu
+pypdf
