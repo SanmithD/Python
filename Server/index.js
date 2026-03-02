@@ -160,6 +160,58 @@ app.get('/test', async(req, res) =>{
   }
 })
 
+app.get('/redis', async(req, res) =>{
+  try {
+    const response = await axios.post(`${BASE_URL}/save_in_redis`,{
+      userId: "u100",
+      question: "what is the last question i asked in one sentence"
+    });
+
+    if(!response){
+      return res.send("Not found")
+    }
+
+    res.send(response.data)
+  } catch (error) {
+    console.log("server error", error);
+    res.send("server error");
+  }
+})
+
+app.post('/chat', async (req, res) => {
+  try {
+
+    const { session_id, message } = req.body;
+
+    const response = await axios.post("http://127.0.0.1:8000/chat", {
+      session_id,
+      message
+    });
+
+    res.send(response.data);
+
+  } catch (error) {
+    console.log(error);
+    res.status(500).send("server error");
+  }
+});
+
+app.post('/clear_session', async (req, res) => {
+  try {
+
+    const { session_id } = req.body;
+    console.log(session_id);
+
+    const response = await axios.post(`http://127.0.0.1:8000/clear_session/${session_id}`);
+
+    res.send(response.data);
+
+  } catch (error) {
+    console.log(error);
+    res.status(500).send("server error");
+  }
+});
+
 app.listen(4000, () => {
-  console.log("server started");
+  console.log(`server started on port http://localhost:${PORT}`);
 });
