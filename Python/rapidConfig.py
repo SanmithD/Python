@@ -1,28 +1,28 @@
 import os
-import http.client
 from TypeSafety import RapidPayload
+import httpx
 
 async def get_rapid_res(inputPayload: RapidPayload):
 
-    conn = http.client.HTTPSConnection("gemini-pro-ai.p.rapidapi.com")
-
     headers = {
-        'x-rapidapi-key': os.getenv("RAPIDAPI_KEY"),
-        'x-rapidapi-host': "gemini-pro-ai.p.rapidapi.com",
-        'Content-Type': "application/json"
+        "x-rapidapi-key": os.getenv("RAPIDAPI_KEY"),
+        "x-rapidapi-host": "gemini-pro-ai.p.rapidapi.com",
+        "Content-Type": "application/json"
     }
 
-    payload = f""" 
+    payload = f"""
 Context: {inputPayload.context}
 
-question: { inputPayload.question }
+Question: {inputPayload.question}
 
-Tool Result: { inputPayload.tool_result }
+Tool Result: {inputPayload.tool_result}
 """
 
-    conn.request("POST", "/", payload, headers)
+    async with httpx.AsyncClient() as client:
+        res = await client.post(
+            "https://gemini-pro-ai.p.rapidapi.com/",
+            headers=headers,
+            content=payload
+        )
 
-    res = conn.getresponse()
-    data = res.read()
-
-    return data.decode("utf-8")
+    return res.text

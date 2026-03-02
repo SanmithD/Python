@@ -60,9 +60,9 @@ KNOWLEDGE → when external docs needed
 ANSWER → when you already know  
 
 Respond JSON:
-{
+{{
   "step": "tool" | "knowledge" | "answer"
-}
+}}
 """
 
 DOCS = [

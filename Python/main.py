@@ -1,19 +1,20 @@
 # venv\Scripts\activate
 
 from app import generate_text, client, allow, decide_tool, explain_by_ai, safe_generate, save_memory, explain_with_memory, get_memory, get_tool_response
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import FastAPI, Request, HTTPException, BackgroundTasks
 from fastapi.responses import StreamingResponse
 from pydantic import ValidationError
 import asyncio
 import json
 from functools import partial
 from SYSTEM_INSTRACTION import SYSTEM_PROMPT, AGENT_PROMPT
-from TypeSafety import SafeResponse, InputValue, InputOrder, MemoryInput
+from TypeSafety import SafeResponse, InputValue, InputOrder, MemoryInput, RapidPayload
 from Tools import get_current_time, check_water_safety, run_tool
 from db import insertDoc
 import time
 from rapidConfig import get_rapid_res
 from rag import search_knowledge
+from radisConfig import get_memory_from_redis, save_memory_in_redis, track_usage
 
 app = FastAPI(title="Learning")
 
@@ -316,7 +317,7 @@ async def rapidTestRes(req: MemoryInput, request: Request):
     if data.get("step") == "tool" and data.get("tool_name"):
         tool_result = await run_tool(data["tool_name"], req.question)
         # Make follow-up call only if tool was used
-        final_answer = await get_rapid_res(req.question,req.userId, context, tool_result)
+        final_answer = await get_rapid_res(req.question, req.userId, context, tool_result)
 
     save_memory(req.userId, "user", req.question)
     save_memory(req.userId, "assistant", final_answer)
@@ -324,3 +325,94 @@ async def rapidTestRes(req: MemoryInput, request: Request):
     return {
         "final_answer": final_answer
     }
+
+@app.post('/save_in_redis')
+async def get_response_from_redis(req: MemoryInput, request: Request, bg: BackgroundTasks):
+
+    # Rate limit
+    ip = request.client.host
+
+    if not allow(ip):
+        raise HTTPException(status_code=429, detail="Too many request")
+    
+    # Load Redis Memory
+    history = get_memory_from_redis(req.userId)
+    loop = asyncio.get_running_loop()
+
+    context = "\n".join(
+        f"{msg['role']}: {msg['content']}" for msg in history
+    )
+
+    # Agent Decision    
+    agent_prompt = AGENT_PROMPT.format(
+        history = context,
+        question = req.question
+    )
+
+    decision_res  = await loop.run_in_executor(
+        None,
+        partial(
+            client.models.generate_content,
+            model="gemini-2.0-flash",  
+            contents=agent_prompt
+        )
+    )
+
+    try:
+        decision = json.loads(decision_res.text)
+    except json.JSONDecodeError:
+        decision = {"step": "answer"}
+
+    step = decision.get("step")
+
+    tool_result = None
+    knowledge_result = None
+
+    # Tool / RAG / Knowledge
+    if step == "tool" and decision.get("tool_name"):
+
+        tool_result = await run_tool(
+            decision["tool_name"],
+            req.question
+        )
+
+    elif step == "knowledge":
+        knowledge_result = await loop.run_in_executor(
+            None, 
+            search_knowledge,
+            req.question
+        )
+
+    # Stream Response
+    
+    async def stream():
+
+        prompt = COMBINED_PROMPT.format(
+            history=context,
+            knowledge="\n".join(knowledge_result) if knowledge_result else "No relevant question found",
+            tool_data=tool_result if tool_result else "None",
+            question=req.question
+        )
+
+        payload = RapidPayload(
+            question=req.question,
+            context=prompt,
+            tool_result=tool_result
+        )
+
+        full_text = await get_rapid_res(payload)
+
+        yield full_text
+
+        # Token Tracking (fake estimate)
+        track_usage(req.userId, len(full_text.split()))
+
+        # Save Memory
+        save_memory_in_redis(req.userId, "user", req.question)
+        save_memory_in_redis(req.userId, "assistant", full_text)
+
+        if len(req.question) > 200:
+            bg.add_task(search_knowledge, req.question)
+
+    return StreamingResponse(stream(), media_type="text/plain")
+    
