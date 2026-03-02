@@ -1,9 +1,7 @@
 from fastapi import FastAPI, HTTPException
 from app.ollama_client import generate_response
-from app.memory import save_messages, get_messages
-from app.safety import ChatRequest
-from app.knowledge_loader import load_knowledge
-from app.vector_db import search_document
+from app.memory import save_messages, get_messages, in_memory_questions
+from app.safety import ChatRequest, get_full_prompt
 from app.intent import small_greet, is_tech_message
 from app.redis_client import redis_client
 from app.pdf_loader import load_all_pdf
@@ -12,9 +10,10 @@ import traceback
 app = FastAPI(title="AI Learning by Ollama")
 
 # Load Knowledege
-@app.on_event("startup")
-def startup():
-    load_all_pdf()
+# @app.on_event("startup")
+# def startup():
+#     if collection.count_documents({}) == 0:
+#         load_all_pdf()
 
 @app.post('/clear_session/{session_id}')
 def clear_session(session_id: str):
@@ -31,45 +30,29 @@ def chat(request: ChatRequest):
     try:
         history = get_messages(request.session_id)
         
-        # Check if it's a greeting/introduction
+        if in_memory_questions(request.message):
+            if history:
+                last_user_msg = [m for m in history if m["role"] == "user"]
+                if last_user_msg:
+                    return {
+                        "response": last_user_msg[-1]["content"]
+                    }
+            return {
+                "response": "You haven't asked anything yet."
+            }
+
+        # Check if it's a greeting/introduction 
         is_greeting = small_greet(request.message)
 
         is_tech = is_tech_message(request.message)
 
-        knowledge_results = []
-
-        if is_tech:    
-            # Search in vector db only for non-greetings
-            knowledge_results = search_document(request.message)
-
-        # Build prompt based on context
-        if is_greeting:
-            system_instruction = "You are a helpful AI assistant. Greet the user briefly."
-        else:
-            system_instruction = (
-                "You are a technical assistant. Use the provided knowledge to answer. "
-                "If the knowledge is not relevant, use your general knowledge. "
-                "Keep answers to 2 sentences."
-            )
-        
-        # 3. ASSEMBLE FINAL PROMPT
-        full_prompt = f"System: {system_instruction}\n\n"
-
-        if knowledge_results:
-            full_prompt += "Context Knowledge:\n"
-            for k in knowledge_results:
-                full_prompt += f"- {k['text']}\n"
-            full_prompt += "\n"
-
-        # Only include recent history (limit to last 6 messages)
-        recent_history = history[-6:]
-        
-        for msg in recent_history:
-            role = "User" if msg["role"] == "user" else "Assistant"
-            full_prompt += f"{role}: {msg['content']}\n"
-
         # 5. ADD CURRENT QUESTION
-        full_prompt += f"User: {request.message}\nAssistant:"
+        full_prompt = get_full_prompt(
+            query=request.message,
+            history=history,
+            is_greeting=is_greeting,
+            is_tech=is_tech
+        )
 
         ai_response = generate_response(full_prompt)
 
@@ -79,7 +62,7 @@ def chat(request: ChatRequest):
         save_messages(request.session_id, {"role": "user", "content": request.message})
         save_messages(request.session_id, {"role": "assistant", "content": ai_response})
 
-        return {"response": ai_response}
+        return {"response": ai_response.split("\n")}
 
     except Exception as e:
         print(f"ERROR: {e}")

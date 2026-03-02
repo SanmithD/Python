@@ -4,7 +4,6 @@ import requests
 GEN_URL = "http://localhost:11434/api/generate"
 GEN_MODEL = "tinyllama"
 
-
 def generate_response(prompt: str):
     try:
         response = requests.post(
@@ -17,7 +16,12 @@ def generate_response(prompt: str):
             timeout=120
         )
 
-        response.raise_for_status()
+        if response.status_code != 200:
+            print("Status ", response.status_code)
+            print("Body ", response.text)
+            response.raise_for_status()
+
+        # response.raise_for_status()
         return response.json().get("response", "")
 
     except Exception as e:

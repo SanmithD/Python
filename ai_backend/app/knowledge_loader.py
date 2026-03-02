@@ -1,4 +1,4 @@
-from app.vector_db import add_document
+from app.retrieval import add_document
 
 def load_knowledge():
 

@@ -12,7 +12,18 @@ def get_messages(session_id):
 
     return [json.loads(msg) for msg in messages]
 
+def in_memory_questions(message: str): 
+    keywords = [
+        "last question",
+        "previous question",
+        "what did i ask",
+        "repeat my question",
+        "earlier"
+    ]
 
+    message = message.lower()
+
+    return any(k in message for k in keywords)
 
 # AI Models do not saves the last conversations
 # Redis saves the conversation messages temporally

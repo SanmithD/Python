@@ -1,6 +1,6 @@
 import os
 from pypdf import PdfReader
-from app.vector_db import add_document
+from app.retrieval import add_document
 
 DOCUMENT_FOLDER = "documents"
 
