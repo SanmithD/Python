@@ -1,4 +1,4 @@
-from app.ollama_client import generate_embedding, generate_response
+from app.ollama_client import generate_response
 
 def expand_query(query: str):
 

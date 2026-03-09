@@ -2,7 +2,7 @@ import requests
 
 # ----------- TEXT GENERATION -----------
 GEN_URL = "http://localhost:11434/api/generate"
-GEN_MODEL = "tinyllama"
+GEN_MODEL = "phi3:3.8b-mini-4k-instruct-q2_K"
 
 def generate_response(prompt: str):
     try:

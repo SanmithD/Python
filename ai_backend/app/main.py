@@ -5,6 +5,7 @@ from app.safety import ChatRequest, get_full_prompt
 from app.intent import small_greet, is_tech_message
 from app.redis_client import redis_client
 from app.pdf_loader import load_all_pdf
+from app.agent import agent_run
 import traceback
 
 app = FastAPI(title="AI Learning by Ollama")
@@ -41,20 +42,9 @@ def chat(request: ChatRequest):
                 "response": "You haven't asked anything yet."
             }
 
-        # Check if it's a greeting/introduction 
-        is_greeting = small_greet(request.message)
+        ai_response = agent_run(request.message)
 
-        is_tech = is_tech_message(request.message)
-
-        # 5. ADD CURRENT QUESTION
-        full_prompt = get_full_prompt(
-            query=request.message,
-            history=history,
-            is_greeting=is_greeting,
-            is_tech=is_tech
-        )
-
-        ai_response = generate_response(full_prompt)
+        print("AI Response", ai_response)
 
         # Clean up the response (sometimes Ollama repeats "Assistant:" in the string)
         ai_response = ai_response.replace("Assistant:", "").strip()

@@ -43,3 +43,23 @@ def get_full_prompt(query, history, is_greeting=False, is_tech=False):
     prompt += f"User: {query}\nAssistant:"
 
     return prompt
+
+def tool_router_prompt(query):
+    return f"""
+You are an AI agent that decides if a tool should be used.
+
+TOOLS AVAILABLE:
+get_current_time → returns current time
+calculate → solves math expressions
+
+Rules:
+- Only respond with one line
+- If a tool is needed use:
+TOOL: tool_name | INPUT: value
+
+- If no tool is needed respond:
+NO_TOOL
+
+User query:
+{query}
+"""
